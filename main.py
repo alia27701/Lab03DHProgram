@@ -39,17 +39,22 @@ G = 2
 class SecurePRNG:
 
     def __init__(self, seed_int):
+        # Made the DH shared secret into bytes
+        seed_bytes = seed_int.to_bytes(32, 'big')
+        # Hash for fixed-length
+        self.state = hashlib.sha256(seed_bytes).digest()
+    #TODO: Initalize the SecurePRNG with the shared secret (seed_int) calculated from Diffie-Hellman key exchange.
 
-    # TODO: Initalize the SecurePRNG with the shared secret (seed_int) calculated from Diffie-Hellman key exchange.
 
     def generate(self, n_bytes):
         # TODO: Generates n bytes while ensuring Rollback Resistance.
         output = b""
         while len(output) < n_bytes:
         # 1. Produce keystream block from current state
-
+            keystream = hashlib.sha256(self.state).digest()
+            output = output + keystream
         # 2. Update state immediately after with a hash function (One-way progression)
-
+            self.state = hashlib.sha256(self.state + keystream).digest()
         return output[:n_bytes]
 
 
