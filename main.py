@@ -59,7 +59,12 @@ class SecurePRNG:
 
 
 def xor_crypt(data, prng):
-
+    keystream = prng.generate(len(data))
+    result = bytearray()
+# Each data byte gets XOR with the keystream
+    for i in range(len(data)):
+        result.append(data[i] ^ keystream[i])
+    return bytes(result)
 
 # TODO: Implement Simple XOR stream cipher logic.
 
@@ -71,8 +76,8 @@ class Entity:
 
     def __init__(self, name):
         self.name = name
-        self.private_key =
-        self.public_key =
+        self.private_key = secrets.randrange(2, P)
+        self.public_key = pow(G, self.private_key, P)
         self.session_prng = None
 
     def get_public_hex(self):
@@ -80,8 +85,8 @@ class Entity:
 
     # TODO: calculate and initialize shared secret with SecurePRNG
     def establish_session(self, partner_pub_hex):
-        partner_pub =
-        shared_secret =
+        partner_pub = int(partner_pub_hex, 16)
+        shared_secret = pow(partner_pub, self.private_key, P)
         self.session_prng = SecurePRNG(shared_secret)
 
 
