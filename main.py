@@ -40,7 +40,8 @@ class SecurePRNG:
 
     def __init__(self, seed_int):
         # Made the DH shared secret into bytes
-        seed_bytes = seed_int.to_bytes(32, 'big')
+        length = (seed_int.bit_length() + 7) // 8
+        seed_bytes = seed_int.to_bytes(length, 'big')
         # Hash for fixed-length
         self.state = hashlib.sha256(seed_bytes).digest()
     #TODO: Initalize the SecurePRNG with the shared secret (seed_int) calculated from Diffie-Hellman key exchange.
@@ -76,7 +77,7 @@ class Entity:
 
     def __init__(self, name):
         self.name = name
-        self.private_key = secrets.randrange(2, P)
+        self.private_key = secrets.randbelow(P - 2) + 2
         self.public_key = pow(G, self.private_key, P)
         self.session_prng = None
 
@@ -108,8 +109,9 @@ class Network:
 # Implement logic for Mallory
 class Mallory:
     def __init__(self):
-        self.private_key =
-        self.public_hex =
+        self.private_key = secrets.randbelow(P - 2) + 2
+        self.public_key = pow(G, self.private_key, P)
+        self.public_hex = hex(self.public_key)
 
         # Mallory maintains TWO sessions
         self.alice_prng = None
@@ -120,7 +122,10 @@ class Mallory:
         if isinstance(payload, str) and payload.startswith("0x"):
             remote_pub = int(payload, 16)
             my_shared_secret = pow(remote_pub, self.private_key, P)
-
+            if sender.lower() == "alice":
+                self.alice_prng = SecurePRNG(my_shared_secret)
+            elif sender.lower() == "bob":
+                self.bob_prng = SecurePRNG(my_shared_secret)
             # TODO: If the sender is alice, generate a session PRNG with Alice.
             # If the sender is Bob, generate a session PRNG with Bob.
 
@@ -129,6 +134,17 @@ class Mallory:
         # 2. Implement Logic for Message Interception/Modification
         if isinstance(payload, bytes):
             print(f"[MALLORY] Intercepting Encrypted Message from {sender}...")
+            if sender.lower() == "alice":
+                # Decrypt
+                plaintext = xor_crypt(payload, self.alice_prng)
+                # Print Message
+                print(f"Message for Mallory: {plaintext.decode()}")
+                # Modify
+                modify = plaintext.decode().replace("9pm", "3am").encode()
+                # re-encrypt
+                re_encrypt = xor_crypt(modify, self.bob_prng)
+
+                return re_encrypt
 
             # TODO: Decrypt the message using the appropriate session PRNG (Hint: Alice is the sender)
             # Print the plaintext message to the console for Mallory's spying purposes.
@@ -177,7 +193,7 @@ def main():
     print("   [Status]: Shared Secret computed: S = B^a mod P = A^b mod P")
 
     print_step("Step 3: Secure Message Transmission")
-    message = b"<INPUT YOUR MESSAGE HERE>"  # Put in your test message here
+    message = b"We are in the house"  # Put in your test message here
     encrypted_msg = xor_crypt(message, alice.session_prng)
     delivered_data = net.send("Alice", "Bob", encrypted_msg)
     final_message = xor_crypt(delivered_data, bob.session_prng)
